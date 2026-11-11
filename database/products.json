@@ -1,0 +1,20 @@
+[
+  {
+    "name": "Tai nghe không dây",
+    "price": 690000,
+    "soluong": 18,
+    "image": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=900&q=85"
+  },
+  {
+    "name": "Đồng hồ thông minh",
+    "price": 1290000,
+    "soluong": 12,
+    "image": "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=900&q=85"
+  },
+  {
+    "name": "Máy ảnh mini",
+    "price": 2450000,
+    "soluong": 7,
+    "image": "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=900&q=85"
+  }
+]
