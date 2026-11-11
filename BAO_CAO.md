@@ -136,6 +136,6 @@ Thực hiện các kiểm thử sau sau khi cấu hình Firebase và chạy ứn
 
 ## 8. Link nộp bài
 
-- **GitHub source code:** [Điền link repository sau khi push source]
+- **GitHub source code:** https://github.com/lnqm2554/LeNguyenQuangMinhGiuaKiDaNenTang7
 - **Video demo:** [Điền link video sau khi quay và tải lên]
 - **File dữ liệu:** `database/products.json` (cập nhật thành dữ liệu thực tế trước khi nộp)
