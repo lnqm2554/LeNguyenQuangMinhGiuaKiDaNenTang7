@@ -98,47 +98,19 @@ Thực hiện lần lượt. Nếu đã cài Flutter/Android Studio, mở PowerS
 3. Ghi lại email/mật khẩu để đăng nhập khi chạy demo; không ghi mật khẩu vào GitHub hoặc file source.
 4. Ứng dụng chỉ có màn hình đăng nhập, không có đăng ký. Tạo tài khoản tại Console như bước này.
 
-## 3. Tạo cấu hình nền tảng cho source có sẵn
+## 3. Cấu hình source từ GitHub
 
-> **Quan trọng:** source hiện tại đã có `lib/main.dart` và `pubspec.yaml`. Không chạy `flutter create ... .` trực tiếp trong thư mục dự án: Flutter có thể thay thế file giao diện đang có.
+Source đã bao gồm thư mục nền tảng `web`/`android`, cấu hình FlutterFire cho project `product-admin-demo`, `pubspec.lock` và Android app config. Khi clone repo, không cần chạy `flutter create` hoặc `flutterfire configure` lần nữa. Các bước cài máy và Firebase Console ở mục 1–2 chỉ cần thực hiện khi thiết lập môi trường mới.
 
-### 3.1. Sinh thư mục Android/Web an toàn
+Mở PowerShell trong thư mục chứa `pubspec.yaml`, rồi chạy:
 
-1. Mở thư mục dự án trong File Explorer hoặc VS Code. Mở Terminal → **New Terminal**; terminal phải ở đúng thư mục chứa `pubspec.yaml`, `lib`, `firebase.json`.
-2. Kiểm tra vị trí:
+```powershell
+flutter pub get
+```
 
-   ```powershell
-   Get-Location
-   Get-ChildItem
-   ```
+`android/local.properties` được tạo riêng cho mỗi máy và không được commit. Flutter/Android Studio sẽ tạo hoặc cập nhật file này trên máy của bạn.
 
-3. Tạo project Flutter khung **ở thư mục khác** để không ghi đè source:
-
-   ```powershell
-   $scaffold = Join-Path $env:TEMP 'product_admin_scaffold'
-   flutter create --project-name product_admin --platforms=web,android $scaffold
-   ```
-
-   Nếu báo thư mục đích đã tồn tại và không rỗng, đổi tên `product_admin_scaffold` trong lệnh thành `product_admin_scaffold2`.
-4. Sao chép chỉ thư mục nền tảng và metadata sang thư mục dự án (đảm bảo terminal vẫn đang ở thư mục dự án):
-
-   ```powershell
-   Copy-Item "$scaffold\web" . -Recurse
-   Copy-Item "$scaffold\android" . -Recurse
-   Copy-Item "$scaffold\.metadata" . -Force
-   ```
-
-   Nếu PowerShell hỏi có ghi đè file, không ghi đè `lib\main.dart` hoặc `pubspec.yaml`; chỉ chép các thư mục/file nêu trên. Không cần chép `lib`, `test`, `pubspec.yaml` từ scaffold.
-5. Xác nhận source gốc vẫn còn:
-
-   ```powershell
-   Test-Path .\lib\main.dart
-   Test-Path .\pubspec.yaml
-   ```
-
-   Cả hai phải trả về `True`.
-
-### 3.2. Cài Firebase CLI và triển khai rules
+### 3.1. Cài Firebase CLI và triển khai rules
 
 Trong terminal đang ở thư mục dự án, chạy lần lượt:
 
@@ -166,7 +138,9 @@ firebase use --add
 
    Chỉ tiếp tục nếu lệnh báo deploy thành công. Không đổi rules thành `allow read, write: if true`.
 
-### 3.3. Liên kết Flutter với Firebase
+### 3.2. Cấu hình FlutterFire lại khi đổi Firebase project
+
+Đối với repo hiện tại, không cần chạy lại bước này. Chỉ thực hiện nếu bạn muốn đổi sang Firebase project khác hoặc cấu hình thiếu/sai.
 
 Trong cùng terminal/thư mục dự án:
 
@@ -178,7 +152,7 @@ flutterfire configure
 1. Nếu `flutterfire` không được nhận diện, đóng/mở terminal mới. Nếu vẫn không được, thêm `%LOCALAPPDATA%\Pub\Cache\bin` vào User `Path`, rồi mở terminal mới và chạy lại `flutterfire configure`.
 2. Khi CLI hỏi Firebase project, chọn project đã tạo.
 3. Khi hỏi platform, chọn **web** và **android** (di chuyển bằng phím mũi tên, chọn/bỏ chọn bằng Space, xác nhận bằng Enter; cách hiển thị có thể khác theo phiên bản).
-4. Nếu CLI hỏi Android package name/application ID, nhập đúng `com.example.product_admin` (khung tạo ở mục 3.1 dùng tên này), hoặc dùng đúng ID được in trong phần Android app settings nếu đã thay đổi.
+4. Nếu CLI hỏi Android package name/application ID, nhập đúng `com.example.product_admin` (theo cấu hình Android hiện có), hoặc dùng đúng ID đang đăng ký trong Firebase Console.
 5. Chờ lệnh hoàn tất. Phải xuất hiện file `lib/firebase_options.dart`. Đây là cấu hình Firebase client cần để chạy app; giữ file này trong source nộp. **Không** tạo hay tải service-account JSON vào ứng dụng.
 6. Cài các thư viện:
 
@@ -217,13 +191,21 @@ flutterfire configure
    Thay `emulator-5554` bằng ID thực tế của thiết bị và thay hai giá trị Cloudinary như mục 2.4.
 4. Đăng nhập, thêm sản phẩm và chọn ảnh từ thư viện. Nếu điện thoại không hiện trong `flutter devices`, kiểm tra USB debugging/cáp hoặc khởi động lại emulator, rồi chạy `flutter doctor -v`.
 
+Trên Windows, nếu Gradle báo không tìm thấy `GradleWrapperMain` khi build từ đường dẫn có dấu hoặc ký tự đặc biệt, clone repo vào đường dẫn ASCII (ví dụ `C:\src\product_admin`) và chạy lại các lệnh từ thư mục đó.
+
 ### 4.3. Build web
 
 ```powershell
 flutter build web --dart-define=CLOUDINARY_CLOUD_NAME=your_cloud_name --dart-define=CLOUDINARY_UPLOAD_PRESET=product_admin_unsigned
 ```
 
-Nếu build thành công, thư mục `build/web` có thể dùng để triển khai. Để demo trực tiếp, dùng lệnh đã cấu hình ở mục 4.1 để app nhận đủ hai giá trị Cloudinary.
+Trong workspace có đường dẫn tiếng Việt/dấu cách, hãy xuất build ra thư mục ASCII để tránh lỗi Windows khi tạo font:
+
+```powershell
+flutter build web --output C:\temp\product_admin_web --dart-define=CLOUDINARY_CLOUD_NAME=your_cloud_name --dart-define=CLOUDINARY_UPLOAD_PRESET=product_admin_unsigned
+```
+
+Sau khi build thành công, thư mục output có thể dùng để triển khai. Để demo trực tiếp, dùng lệnh đã cấu hình ở mục 4.1 để app nhận đủ hai giá trị Cloudinary.
 
 ## 5. Kiểm tra chức năng và chuẩn bị bài nộp
 

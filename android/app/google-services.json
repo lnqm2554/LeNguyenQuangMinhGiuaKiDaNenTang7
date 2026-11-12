@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "453418450372",
+    "project_id": "product-admin-demo",
+    "storage_bucket": "product-admin-demo.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:453418450372:android:d4bd9166c7d7359f737891",
+        "android_client_info": {
+          "package_name": "com.example.product_admin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyClWeC6UVSmLYxi5ehnAWA_xOXsTUMpWA0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

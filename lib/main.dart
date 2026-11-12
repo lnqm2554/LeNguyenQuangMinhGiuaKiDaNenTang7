@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -793,7 +791,7 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
                       child: _imageBytes != null
                           ? Image.memory(_imageBytes!, fit: BoxFit.cover)
                           : Image.network(
-                              product.image,
+                              product?.image ?? '',
                               fit: BoxFit.cover,
                               errorBuilder: (_, __, ___) => const ColoredBox(
                                 color: Color(0xFFE9ECF5),
