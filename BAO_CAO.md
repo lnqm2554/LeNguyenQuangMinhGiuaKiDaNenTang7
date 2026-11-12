@@ -19,9 +19,9 @@ Xây dựng ứng dụng quản trị sản phẩm đa nền tảng bằng Flutt
 - Flutter, Dart, Material 3: giao diện responsive cho web và Android.
 - Firebase Authentication: đăng nhập email/mật khẩu.
 - Cloud Firestore: lưu và đồng bộ danh sách sản phẩm theo thời gian thực.
-- Firebase Storage: lưu ảnh sản phẩm.
+- Cloudinary: lưu ảnh; URL HTTPS được lưu ở trường `image`.
 - `image_picker`: chọn ảnh; `mime`: xác định loại ảnh.
-- `intl`: định dạng giá tiền; `uuid`: tạo tên tệp ảnh duy nhất.
+- `intl`: định dạng giá tiền; `http`: tải ảnh lên Cloudinary.
 
 Các lệnh cài đặt và cấu hình:
 
@@ -43,10 +43,26 @@ firebase --version
 firebase login
 firebase use --add
 firebase use
-firebase deploy --only firestore:rules,storage
+firebase deploy --only firestore:rules
 ```
 
 Trong `firebase use --add`, chọn đúng Firebase project ID và đặt alias `default`; xác nhận lại bằng `firebase use` trước khi deploy.
+
+App tải ảnh bằng unsigned upload preset của Cloudinary. Gói Free hiện được quảng cáo là không cần thẻ tín dụng; xác nhận quota/điều khoản hiện hành khi tạo tài khoản. Trong Cloudinary Console, ghi **Cloud name**, vào **Settings → Upload → Upload presets → Add upload preset**, tạo preset có **Signing Mode: Unsigned**, và giới hạn ảnh JPEG/PNG/WebP, 5 MB nếu giao diện cho phép. Không dùng hoặc đưa API Secret vào mã nguồn.
+
+Chạy ứng dụng bằng hai cấu hình public sau (thay giá trị ví dụ bằng Cloud name và preset của bạn):
+
+```powershell
+flutter run -d chrome --dart-define=CLOUDINARY_CLOUD_NAME=your_cloud_name --dart-define=CLOUDINARY_UPLOAD_PRESET=product_admin_unsigned
+```
+
+Mở emulator/thiết bị, lấy ID bằng `flutter devices`, sau đó chạy riêng:
+
+```powershell
+flutter run -d <device-id> --dart-define=CLOUDINARY_CLOUD_NAME=your_cloud_name --dart-define=CLOUDINARY_UPLOAD_PRESET=product_admin_unsigned
+```
+
+Unsigned preset được nhúng vào client nên có thể bị người khác sử dụng; giới hạn preset và theo dõi quota. Thay/xóa sản phẩm không xóa ảnh cũ trên Cloudinary; có thể dọn ảnh thủ công trong Media Library. Xóa ảnh tự động cần backend an toàn giữ API Secret, không được đặt secret trong app.
 
 ## 3. Thiết kế dữ liệu
 
@@ -57,7 +73,7 @@ Collection Firestore: `products`. Mỗi sản phẩm chỉ có các trường:
 | `name` | String | Tên sản phẩm |
 | `price` | Number | Giá sản phẩm, không âm |
 | `soluong` | Integer | Số lượng, không âm |
-| `image` | String | URL ảnh trên Firebase Storage |
+| `image` | String | URL HTTPS ảnh trên Cloudinary |
 
 ID tài liệu do Firestore quản lý; không lưu thêm trường nào vào tài liệu sản phẩm. Email và thông tin xác thực được Firebase Authentication quản lý riêng. File JSON dữ liệu mẫu nằm tại `database/products.json`; thay bằng dữ liệu thật đã nhập/xuất trước khi nộp.
 
@@ -68,39 +84,38 @@ ID tài liệu do Firestore quản lý; không lưu thêm trường nào vào t�
 
 1. Tạo Firebase project tại Firebase Console, ghi lại project ID.
 2. Bật **Authentication → Email/Password**; tạo tài khoản demo ở **Authentication → Users → Add user**.
-3. Tạo Firestore Database ở chế độ production và tạo Storage bucket. Nếu Firebase yêu cầu bật billing, kiểm tra giá/giới hạn trong Console trước khi xác nhận.
+3. Tạo Firestore Database ở chế độ production. Không cần bật Firebase Storage.
 4. Cài Flutter SDK, Android Studio/Android SDK và Node.js LTS; xử lý các mục cần thiết của `flutter doctor -v`. Hướng dẫn cài Windows chi tiết trong [`README.md`](./README.md), mục 1.
 5. Tạo thư mục nền tảng `web` và `android` bằng Flutter khung trong một thư mục riêng, rồi sao chép chúng vào source. **Không chạy `flutter create ... .` trong thư mục source hiện có.** Xem [`README.md`](./README.md), mục 3.1.
-6. Cài Firebase CLI, đăng nhập, chọn đúng project và deploy `firebase/firestore.rules` cùng `firebase/storage.rules`; xác minh `firebase use` trước khi deploy.
+6. Cài Firebase CLI, đăng nhập, chọn đúng project và deploy `firebase/firestore.rules`; xác minh `firebase use` trước khi deploy.
 7. Chạy `flutterfire configure`, chọn Firebase project và nền tảng Web/Android. Kiểm tra lệnh đã tạo `lib/firebase_options.dart`; sau đó chạy `flutter pub get`.
-8. Chạy ứng dụng:
+8. Tạo Cloudinary unsigned upload preset như hướng dẫn mục 2; ghi lại Cloud name và preset name.
+9. Chạy ứng dụng với các tham số Cloudinary:
 
    ```powershell
-   flutter run -d chrome
-   flutter devices
-   flutter run -d <device-id-hiển-thị>
+   flutter run -d chrome --dart-define=CLOUDINARY_CLOUD_NAME=your_cloud_name --dart-define=CLOUDINARY_UPLOAD_PRESET=product_admin_unsigned
    ```
 
-   Mở Chrome cho lệnh web; khởi động Android emulator hoặc kết nối thiết bị trước khi chạy lệnh di động.
-9. Đăng nhập bằng tài khoản demo; thêm sản phẩm, chọn ảnh, sau đó thử sửa và xóa. Build web:
+   Mở Chrome cho lệnh web. Để chạy Android, khởi động emulator/thiết bị, chạy `flutter devices` trong lệnh riêng, sau đó chạy `flutter run -d <device-id-hiển-thị> --dart-define=CLOUDINARY_CLOUD_NAME=your_cloud_name --dart-define=CLOUDINARY_UPLOAD_PRESET=product_admin_unsigned`.
+10. Đăng nhập bằng tài khoản demo; thêm sản phẩm, chọn ảnh, sau đó thử sửa và xóa. Build web:
 
    ```powershell
-   flutter build web
+   flutter build web --dart-define=CLOUDINARY_CLOUD_NAME=your_cloud_name --dart-define=CLOUDINARY_UPLOAD_PRESET=product_admin_unsigned
    ```
 
-**Ảnh trang Authentication và tài khoản demo:**  
+**Ảnh trang Authentication và tài khoản demo:**
 [Chèn ảnh chụp Firebase Authentication tại đây]
 
-**Ảnh rules đã triển khai:**  
-[Chèn ảnh Firestore Rules và Storage Rules tại đây]
+**Ảnh Firestore Rules và Cloudinary Upload Preset:**
+[Chèn ảnh Firestore Rules và cấu hình preset (che thông tin riêng nếu có) tại đây]
 
 ## 5. Chức năng
 
 - Đăng nhập và đăng xuất bằng Firebase Authentication.
 - Hiển thị danh sách sản phẩm realtime; giao diện tự điều chỉnh theo độ rộng màn hình.
 - Thêm sản phẩm với kiểm tra tên, giá, số lượng và ảnh bắt buộc.
-- Tải ảnh lên Storage và hiển thị URL ảnh trong trường `image`.
-- Sửa thông tin/ảnh, xóa sản phẩm có xác nhận; ảnh thuộc Storage được dọn khi xóa/thay ảnh.
+- Tải ảnh JPEG/PNG/WebP (tối đa 5 MB) lên Cloudinary và hiển thị URL ảnh trong trường `image`.
+- Sửa/xóa sản phẩm có xác nhận. Vì app client không chứa Cloudinary API Secret, ảnh cũ không tự xóa khỏi Cloudinary và cần dọn thủ công nếu không dùng nữa.
 - Firebase Rules yêu cầu đăng nhập và chỉ chấp nhận đúng bốn trường sản phẩm.
 
 **Ảnh màn hình đăng nhập:**  
@@ -126,7 +141,7 @@ Thực hiện các kiểm thử sau sau khi cấu hình Firebase và chạy ứn
 | 3 | Thêm sản phẩm có đủ bốn trường và ảnh | Chưa thực hiện |
 | 4 | Nhập tên rỗng, giá/số lượng không hợp lệ | Chưa thực hiện |
 | 5 | Sửa tên, giá, số lượng và ảnh; tải lại để kiểm tra dữ liệu | Chưa thực hiện |
-| 6 | Hủy và xác nhận xóa; kiểm tra Firestore/Storage | Chưa thực hiện |
+| 6 | Hủy và xác nhận xóa; kiểm tra Firestore và lưu ý ảnh vẫn còn trên Cloudinary | Chưa thực hiện |
 | 7 | Mở đồng thời web và Android để kiểm tra đồng bộ | Chưa thực hiện |
 | 8 | Kiểm tra tài liệu chỉ có `name`, `price`, `soluong`, `image` | Chưa thực hiện |
 

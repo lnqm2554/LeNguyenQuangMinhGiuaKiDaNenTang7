@@ -3,14 +3,13 @@ import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:mime/mime.dart';
-import 'package:uuid/uuid.dart';
 
+import 'cloudinary_uploader.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {
@@ -286,13 +285,6 @@ class Product {
       };
 }
 
-Future<void> _deleteStoredImage(String url) async {
-  final uri = Uri.tryParse(url);
-  if (url.startsWith('gs://') || uri?.host == 'firebasestorage.googleapis.com') {
-    await FirebaseStorage.instance.refFromURL(url).delete();
-  }
-}
-
 class ProductListScreen extends StatelessWidget {
   const ProductListScreen({required this.user, super.key});
 
@@ -319,7 +311,9 @@ class ProductListScreen extends StatelessWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Xóa sản phẩm?'),
-        content: Text('Bạn có chắc muốn xóa "${product.name}" không?'),
+        content: Text(
+          'Bạn có chắc muốn xóa "${product.name}" không? Ảnh trên Cloudinary vẫn được giữ lại.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -343,18 +337,12 @@ class ProductListScreen extends StatelessWidget {
       }
       return;
     }
-    try {
-      await _deleteStoredImage(product.image);
-    } on FirebaseException catch (error) {
-      if (context.mounted) {
-        _showMessage(
-          context,
-          'Đã xóa sản phẩm nhưng chưa xóa được ảnh trên Storage: ${error.message ?? error.code}',
-        );
-      }
-      return;
+    if (context.mounted) {
+      _showMessage(
+        context,
+        'Đã xóa sản phẩm. Ảnh trên Cloudinary vẫn còn; hãy xóa thủ công nếu không dùng nữa.',
+      );
     }
-    if (context.mounted) _showMessage(context, 'Đã xóa sản phẩm.');
   }
 
   @override
@@ -632,8 +620,8 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
       if (image == null) return;
       final bytes = await image.readAsBytes();
       final mimeType = lookupMimeType(image.name, headerBytes: bytes);
-      if (mimeType == null || !mimeType.startsWith('image/')) {
-        _showMessage('Tệp đã chọn không phải hình ảnh hợp lệ.');
+      if (!const {'image/jpeg', 'image/png', 'image/webp'}.contains(mimeType)) {
+        _showMessage('Chỉ hỗ trợ ảnh JPEG, PNG hoặc WebP.');
         return;
       }
       if (bytes.length > 5 * 1024 * 1024) {
@@ -644,8 +632,6 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
         _selectedImage = image;
         _imageBytes = bytes;
       });
-    } on FirebaseException catch (error) {
-      _showMessage('Không thể đọc hình ảnh: ${error.message ?? error.code}');
     } on PlatformException catch (error) {
       _showMessage('Không thể chọn hình ảnh: $error');
     }
@@ -679,7 +665,7 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
     }
 
     setState(() => _isSaving = true);
-    Reference? uploadedImage;
+    var imageUploaded = false;
     try {
       final productRef = FirebaseFirestore.instance
           .collection('products')
@@ -689,16 +675,18 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
         final contentType = lookupMimeType(
               _selectedImage!.name,
               headerBytes: _imageBytes,
-            ) ??
-            'image/jpeg';
-        uploadedImage = FirebaseStorage.instance
-            .ref()
-            .child('products/${productRef.id}/${const Uuid().v4()}');
-        await uploadedImage.putData(
-          _imageBytes!,
-          SettableMetadata(contentType: contentType),
+            );
+        if (contentType == null ||
+            !const {'image/jpeg', 'image/png', 'image/webp'}.contains(contentType)) {
+          _showMessage('Chỉ hỗ trợ ảnh JPEG, PNG hoặc WebP.');
+          return;
+        }
+        imageUrl = await CloudinaryUploader.uploadImage(
+          bytes: _imageBytes!,
+          fileName: _selectedImage!.name,
+          mimeType: contentType,
         );
-        imageUrl = await uploadedImage.getDownloadURL();
+        imageUploaded = true;
       }
 
       final data = Product(
@@ -710,28 +698,21 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
       ).toMap();
       await productRef.set(data);
 
-      final previousImage = widget.product?.image;
-      if (previousImage != null && _selectedImage != null) {
-        try {
-          await _deleteStoredImage(previousImage);
-        } on FirebaseException catch (error) {
-          _showMessage(
-            'Đã lưu sản phẩm nhưng chưa xóa được ảnh cũ: ${error.message ?? error.code}',
-          );
-        }
+      if (widget.product != null && _selectedImage != null) {
+        _showMessage(
+          'Đã cập nhật sản phẩm. Ảnh cũ vẫn còn trên Cloudinary; hãy xóa thủ công nếu không dùng nữa.',
+        );
       }
       if (mounted) Navigator.of(context).pop();
+    } on CloudinaryUploadException catch (error) {
+      _showMessage('Không thể tải ảnh: ${error.message}');
     } on FirebaseException catch (error) {
-      if (uploadedImage != null) {
-        try {
-          await uploadedImage.delete();
-        } on FirebaseException catch (cleanupError) {
-          _showMessage(
-            'Không thể hoàn tác tệp ảnh tạm: ${cleanupError.message ?? cleanupError.code}',
-          );
-        }
-      }
-      _showMessage('Không thể lưu sản phẩm: ${error.message ?? error.code}');
+      final cleanupNote = imageUploaded
+          ? ' Ảnh đã tải lên Cloudinary nhưng chưa lưu được sản phẩm; hãy xóa ảnh thừa trong Cloudinary Media Library.'
+          : '';
+      _showMessage(
+        'Không thể lưu sản phẩm: ${error.message ?? error.code}.$cleanupNote',
+      );
     } on FormatException catch (error) {
       _showMessage('Dữ liệu nhập không hợp lệ: ${error.message}');
     } finally {

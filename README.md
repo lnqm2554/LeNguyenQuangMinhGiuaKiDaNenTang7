@@ -1,6 +1,6 @@
 # Quản lý sản phẩm — Flutter + Firebase
 
-Ứng dụng quản trị responsive chạy trên web và thiết bị di động, gồm đăng nhập, thêm, xem, sửa, xóa sản phẩm, chọn ảnh từ thư viện và đồng bộ dữ liệu bằng Cloud Firestore. Ảnh được tải lên Firebase Storage; trường `image` lưu URL tải ảnh.
+Ứng dụng quản trị responsive chạy trên web và thiết bị di động, gồm đăng nhập, thêm, xem, sửa, xóa sản phẩm, chọn ảnh từ thư viện và đồng bộ dữ liệu bằng Cloud Firestore. Ảnh được tải lên Cloudinary; trường `image` lưu URL ảnh HTTPS.
 
 ## Giới hạn schema
 
@@ -82,12 +82,14 @@ Thực hiện lần lượt. Nếu đã cài Flutter/Android Studio, mở PowerS
 3. Chọn vị trí (location) phù hợp, gần người dùng; xác nhận **Create/Enable**. Hãy chọn kỹ vì vị trí database thường không đổi được sau khi tạo.
 4. Không cần tạo collection `products` bằng tay. Ứng dụng sẽ tạo collection khi thêm sản phẩm đầu tiên.
 
-### 2.4. Bật Storage cho ảnh
+### 2.4. Cấu hình Cloudinary cho ảnh (không dùng Firebase Storage)
 
-1. Menu trái → **Build → Storage → Get started**.
-2. Làm theo các bước tạo bucket và chọn vị trí; nếu được hỏi chế độ rules, có thể bắt đầu ở chế độ production.
-3. Firebase có thể yêu cầu liên kết billing/nâng cấp gói để tạo hoặc dùng bucket. Trước khi xác nhận, đọc cảnh báo trong Console và kiểm tra giá/giới hạn hiện hành. Không tải ảnh riêng tư hoặc nhạy cảm lên project demo.
-4. Rules đúng sẽ được triển khai từ source ở bước 4. Nếu chưa bật Storage, chức năng chọn ảnh sẽ không lưu được ảnh.
+1. Tạo tài khoản Cloudinary tại [cloudinary.com](https://cloudinary.com/). Gói Free hiện được quảng cáo là miễn phí và không cần thẻ tín dụng; kiểm tra hạn mức/điều khoản hiện hành trước khi dùng.
+2. Trong **Cloudinary Console → Dashboard**, ghi lại **Cloud name**.
+3. Vào **Settings → Upload → Upload presets → Add upload preset** (tên/vị trí mục có thể khác đôi chút).
+4. Đặt tên preset, ví dụ `product_admin_unsigned`, chọn **Signing Mode: Unsigned**, giới hạn định dạng thành `jpg`, `jpeg`, `png`, `webp` và dung lượng tối đa 5 MB nếu giao diện cho phép, sau đó lưu preset.
+5. App chỉ cần Cloud name và tên unsigned preset. Không đưa API Secret hoặc khóa bí mật vào Flutter, `--dart-define`, GitHub hay Firestore. Unsigned preset sẽ công khai trong ứng dụng; giới hạn định dạng/dung lượng, theo dõi quota và không dùng cho ảnh riêng tư.
+6. Firebase Storage không còn cần thiết. Không tạo bucket hoặc deploy Storage rules; Firebase chỉ cung cấp Authentication và Firestore cho ứng dụng.
 
 ### 2.5. Tạo tài khoản đăng nhập
 
@@ -159,7 +161,7 @@ firebase use --add
 4. Triển khai rules trong source:
 
    ```powershell
-   firebase deploy --only firestore:rules,storage
+   firebase deploy --only firestore:rules
    ```
 
    Chỉ tiếp tục nếu lệnh báo deploy thành công. Không đổi rules thành `allow read, write: if true`.
@@ -195,12 +197,12 @@ flutterfire configure
 
    ```powershell
    flutter devices
-   flutter run -d chrome
+   flutter run -d chrome --dart-define=CLOUDINARY_CLOUD_NAME=your_cloud_name --dart-define=CLOUDINARY_UPLOAD_PRESET=product_admin_unsigned
    ```
 
-3. Chrome mở ứng dụng. Đăng nhập bằng tài khoản tại mục 2.5.
+3. Thay `your_cloud_name` và `product_admin_unsigned` bằng giá trị thật ở mục 2.4. Chrome mở ứng dụng; đăng nhập bằng tài khoản tại mục 2.5.
 4. Nhấn **Thêm sản phẩm** → nhập tên, giá, số lượng → **Chọn hình ảnh** → chọn file ảnh từ máy → **Thêm**. Trên web, hộp thoại chọn ảnh là file picker của trình duyệt.
-5. Mở **Firebase Console → Firestore Database → Data** để kiểm tra collection `products`; mở **Storage → Files** để kiểm tra tệp ảnh.
+5. Mở **Firebase Console → Firestore Database → Data** để kiểm tra collection `products`; mở **Cloudinary Console → Media Library** để kiểm tra ảnh.
 
 ### 4.2. Chạy Android
 
@@ -209,28 +211,28 @@ flutterfire configure
 3. Chạy lệnh với đúng ID:
 
    ```powershell
-   flutter run -d emulator-5554
+   flutter run -d emulator-5554 --dart-define=CLOUDINARY_CLOUD_NAME=your_cloud_name --dart-define=CLOUDINARY_UPLOAD_PRESET=product_admin_unsigned
    ```
 
-   Thay `emulator-5554` bằng ID thực tế của thiết bị.
+   Thay `emulator-5554` bằng ID thực tế của thiết bị và thay hai giá trị Cloudinary như mục 2.4.
 4. Đăng nhập, thêm sản phẩm và chọn ảnh từ thư viện. Nếu điện thoại không hiện trong `flutter devices`, kiểm tra USB debugging/cáp hoặc khởi động lại emulator, rồi chạy `flutter doctor -v`.
 
 ### 4.3. Build web
 
 ```powershell
-flutter build web
+flutter build web --dart-define=CLOUDINARY_CLOUD_NAME=your_cloud_name --dart-define=CLOUDINARY_UPLOAD_PRESET=product_admin_unsigned
 ```
 
-Nếu build thành công, thư mục web có thể dùng để triển khai; để demo trực tiếp trên lớp, `flutter run -d chrome` thường là đủ.
+Nếu build thành công, thư mục `build/web` có thể dùng để triển khai. Để demo trực tiếp, dùng lệnh đã cấu hình ở mục 4.1 để app nhận đủ hai giá trị Cloudinary.
 
 ## 5. Kiểm tra chức năng và chuẩn bị bài nộp
 
 1. Đăng nhập hợp lệ; thử mật khẩu sai để chụp thông báo lỗi.
 2. Thêm 2–3 sản phẩm thật với ảnh; kiểm tra thẻ hiển thị tên, giá, số lượng và ảnh.
 3. Sửa một sản phẩm, tải lại trang và kiểm tra dữ liệu đã lưu.
-4. Xóa sản phẩm thử nghiệm; kiểm tra tài liệu Firestore và ảnh Storage tương ứng đã bị xóa.
+4. Xóa sản phẩm thử nghiệm; kiểm tra tài liệu Firestore đã bị xóa. Ảnh trên Cloudinary được giữ lại; nếu không cần, xóa thủ công trong Media Library.
 5. Mở Firebase Console → Firestore → `products`; từng tài liệu phải có đúng bốn trường `name`, `price`, `soluong`, `image`. Chụp ảnh màn hình rõ tên trường và giá trị.
-6. Chụp ảnh màn hình đăng nhập, danh sách web, form thêm/sửa, giao diện Android, Authentication Users, Firestore Data và Storage Files. Thay chỗ trống trong [`BAO_CAO.md`](./BAO_CAO.md) bằng ảnh và kết quả **thực tế**.
+6. Chụp ảnh màn hình đăng nhập, danh sách web, form thêm/sửa, giao diện Android, Authentication Users, Firestore Data và Cloudinary Media Library. Thay chỗ trống trong [`BAO_CAO.md`](./BAO_CAO.md) bằng ảnh và kết quả **thực tế**.
 7. `database/products.json` ban đầu là dữ liệu mẫu, chưa phải bản xuất Firestore. Trước khi nộp, cập nhật file bằng sản phẩm thật; mỗi object phải chỉ có bốn thuộc tính đã nêu. Có thể sao chép giá trị từ Firestore Data và sửa file bằng VS Code; kiểm tra JSON bằng PowerShell:
 
    ```powershell
@@ -249,7 +251,10 @@ Nếu build thành công, thư mục web có thể dùng để triển khai; đ�
 - **Không tìm thấy `firebase_options.dart`:** chạy `flutterfire configure` ở đúng thư mục dự án và kiểm tra `lib\firebase_options.dart`.
 - **`permission-denied` khi tải dữ liệu:** đảm bảo đã đăng nhập, chọn đúng project bằng `firebase use`, và deploy rules thành công.
 - **Đăng nhập không được:** kiểm tra đã bật Email/Password và tài khoản tồn tại trong Authentication → Users.
-- **Không tải được ảnh:** đảm bảo Storage bucket đã được tạo, đã deploy `firebase/storage.rules`, file ảnh dưới 5 MB và thiết bị có internet; kiểm tra thông báo billing trong Firebase Console.
+- **Không tải được ảnh:** kiểm tra Cloud name, tên unsigned preset, định dạng JPEG/PNG/WebP, ảnh dưới 5 MB và kết nối mạng. Xem thông báo lỗi Cloudinary trong app/Console và quota của tài khoản.
+- **App báo chưa cấu hình Cloudinary:** chạy lại app với cả hai tham số `--dart-define=CLOUDINARY_CLOUD_NAME=...` và `--dart-define=CLOUDINARY_UPLOAD_PRESET=...`.
+- **Lưu Firestore lỗi sau khi upload:** ảnh có thể đã tải lên Cloudinary nhưng chưa liên kết với sản phẩm; tìm và dọn ảnh thừa trong Media Library.
+- **Xóa/sửa sản phẩm nhưng ảnh cũ còn trên Cloudinary:** đây là chủ đích. Xóa media bằng API cần API Secret và backend đáng tin cậy; không nhúng secret vào app. Dọn ảnh cũ thủ công trong Media Library.
 - **Sai Firebase project:** chạy `firebase use`; chạy lại `flutterfire configure` và chọn project đúng nếu cần.
 
 ## 3. File dữ liệu nộp
@@ -261,9 +266,9 @@ Báo cáo bài thi có sẵn tại [`BAO_CAO.md`](./BAO_CAO.md); cần thay ch�
 ## 4. Kiểm tra và minh họa báo cáo
 
 - Đăng nhập thành công và thử thông báo khi nhập sai mật khẩu.
-- Thêm sản phẩm có ảnh; chụp màn hình biểu mẫu, danh sách và tài liệu trên Firestore.
+- Thêm sản phẩm có ảnh; chụp màn hình biểu mẫu, danh sách, tài liệu trên Firestore và ảnh trên Cloudinary.
 - Sửa giá/số lượng/ảnh, tải lại trang và kiểm tra dữ liệu vẫn đồng bộ.
-- Xóa sản phẩm; kiểm tra tài liệu và ảnh tương ứng đã bị xóa.
+- Xóa sản phẩm; kiểm tra tài liệu đã bị xóa và lưu ý ảnh vẫn còn trên Cloudinary.
 - Chạy trên Chrome và Android; chụp ảnh giao diện mobile, trong đó ảnh và thông tin sản phẩm hiển thị đúng.
 - Ghi các lệnh cài thư viện (`flutter pub get`) và cấu hình Firebase/FlutterFire ở trên vào báo cáo.
 
